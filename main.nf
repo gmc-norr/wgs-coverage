@@ -46,7 +46,7 @@ process samtools_index {
 }
 
 process plot_coverage {
-    conda "environments/plot_coverage.yaml"
+    conda "${projectDir}/environments/plot_coverage.yaml"
     publishDir "${params.results}/${sample}"
 
     input:
@@ -116,7 +116,7 @@ workflow {
         genome_ch = Channel.value(params.genome)
     }
 
-    cytoband_ch = genome_ch.map { file("data/cytoBand.${it}.txt") }
+    cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it}.txt") }
 
     coverage = mosdepth(bam_ch)
     plot_coverage(sample, coverage.per_base_d4, genome_ch, cytoband_ch)
