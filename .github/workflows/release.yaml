@@ -15,5 +15,4 @@ jobs:
       - uses: google-github-actions/release-please-action@v4
         with:
           release-type: simple
-          package-name: ${{ GITHUB_REPOSITORY }}
           default-branch: main
