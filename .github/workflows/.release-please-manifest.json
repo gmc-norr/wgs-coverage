@@ -1,11 +1,9 @@
 {
-    "packages": {
-        ".": {
-            "release-type": "simple"
-            "package-name": "wgs-coverage"
-            "extra-files": [
-                "README.md"
-            ]
-        }
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "wgs-coverage",
+      "extra-files": ["README.md"]
     }
+  }
 }
