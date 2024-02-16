@@ -1,0 +1,13 @@
+name: plot_coverage
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - click>=8,<9
+    - matplotlib
+    - numpy
+    - pyd4==0.3.9
