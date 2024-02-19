@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
 import argparse
-import pysam
 import sys
+
+import pysam
+
 
 def get_bam_seqs(bam):
     bamfile = pysam.AlignmentFile(bam, "rb")
     seqs = dict(zip(bamfile.header.references, bamfile.header.lengths))
     return seqs
+
 
 def guess_genome(bam_seqs):
     chr1_len = bam_seqs.get("chr1")
@@ -16,8 +19,9 @@ def guess_genome(bam_seqs):
         return "hg19"
     elif chr1_len == 248956422:
         return "hg38"
-    
+
     raise ValueError("could not determine reference genome")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -28,6 +32,7 @@ def main():
     genome_build = guess_genome(bam_seqs)
 
     print(genome_build, end="")
+
 
 if __name__ == "__main__":
     main()

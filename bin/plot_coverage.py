@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-import click
+import pathlib
 from collections import defaultdict
+
+import click
 import matplotlib as mpl
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-from matplotlib import style
 import numpy as np
-import pathlib
+from matplotlib import style
 from pyd4 import D4File
 
 INCLUDE_CHROMS = [
@@ -117,7 +118,9 @@ def plot_coverage(
 
     # style.use("ggplot")
 
-    fig, axs = plt.subplot_mosaic(chrom_layout, layout="constrained", width_ratios=width_ratios)
+    fig, axs = plt.subplot_mosaic(
+        chrom_layout, layout="constrained", width_ratios=width_ratios
+    )
     for chrom in INCLUDE_CHROMS:
         ax = axs[chrom]
         x = cov[chrom]["coverage"]
