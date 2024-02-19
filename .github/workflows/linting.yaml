@@ -1,8 +1,8 @@
 name: Lint
 
 on:
-  - push
-  - pull_request
+  push:
+  pull_request:
 
 jobs:
   python:
@@ -11,3 +11,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: psf/black@stable
+
+  prettier:
+    name: Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: creyD/prettier_action@v4.3
+        with:
+          prettier_options: --check "**/*.{jd,json,md,yaml,yml}"
+          dry: true
