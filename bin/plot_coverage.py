@@ -188,17 +188,15 @@ def plot_coverage(
     type=click.Path(path_type=pathlib.Path),
     help="Output image file",
 )
-@click.option("--dpi", default=100, show_default=True, help="Plot resolution")
 @click.option(
     "-r",
-    "--reference-genome",
-    "genome_build",
-    help="Reference genome build",
-    type=click.Choice(["hg19", "hg38"]),
-    default="hg19",
-    show_default=True,
+    "--regions",
+    "regions",
+    type=click.Path(path_type=pathlib.Path),
+    help="BED file(s) with regions to cover",
 )
-def main(coverage, cytobands_file, dpi, plot_file, genome_build):
+@click.option("--dpi", default=100, show_default=True, help="Plot resolution")
+def main(coverage, cytobands_file, regions, dpi, plot_file):
     f = D4File(coverage)
 
     cytobands = {}

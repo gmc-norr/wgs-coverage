@@ -48,16 +48,16 @@ process samtools_index {
 
 process plot_coverage {
     conda "${projectDir}/environments/plot_coverage.yaml"
-    publishDir "${params.results}/${sample}"
+    publishDir "${params.results}/${sample}/plots"
 
     input:
     val sample
     path coverage
-    val genome
     path cytobands
+    path regions
 
     output:
-    path '*.total_coverage.png'
+    path '*.png', emit: plots
 
     script:
     cytoband_arg = ""
@@ -65,12 +65,13 @@ process plot_coverage {
         cytoband_arg = "--cytobands $cytobands"
     }
 
-    if (genome) {
-        genome = "--reference-genome $genome"
+    region_arg = ""
+    if (regions.name != "NO_FILE") {
+        region_arg = "--regions $regions"
     }
 
     """
-    plot_coverage.py $cytoband_arg $genome -o ${sample}.total_coverage.png $coverage
+    plot_coverage.py $region_arg $cytoband_arg -o ${sample}.total_coverage.png $coverage
     """
 }
 
@@ -134,12 +135,12 @@ workflow {
     }
 
     cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it}.txt") }
+
+    regions_ch = Channel.fromPath(file("${projectDir}/assets/NO_FILE"))
     if (params.regions) {
-        gene_regions = split_bed(Channel.fromPath(file(params.regions)))
-    } else {
-        gene_regions = Channel.empty()
+        regions_ch = Channel.fromPath(file(params.regions))
     }
 
     coverage = mosdepth(bam_ch)
-    plot_coverage(sample, coverage.per_base_d4, genome_ch, cytoband_ch)
+    plot_coverage(sample, coverage.per_base_d4, cytoband_ch, regions_ch)
 }
