@@ -10,6 +10,7 @@ log.info """\
      genome: ${params.genome}
   cytobands: ${params.cytobands}
     results: ${params.results}
+    regions: ${params.regions}
     """
 
 process mosdepth {
@@ -32,7 +33,7 @@ process mosdepth {
 
 process samtools_index {
     container 'quay.io/biocontainers/samtools:1.19.1--h50ea8bc_0'
-    
+
     input:
     path bam
 
@@ -70,6 +71,22 @@ process plot_coverage {
 
     """
     plot_coverage.py $cytoband_arg $genome -o ${sample}.total_coverage.png $coverage
+    """
+}
+
+process split_bed {
+    container 'quay.io/biocontainers/csvtk:0.29.0--h9ee0642_0'
+
+    input:
+    path bed
+
+    output:
+    path "*.${extension}", emit: split_bed
+
+    script:
+    extension = bed.getExtension()
+    """
+    csvtk split --no-header-row --tabs -f 4 $bed
     """
 }
 
@@ -117,6 +134,11 @@ workflow {
     }
 
     cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it}.txt") }
+    if (params.regions) {
+        gene_regions = split_bed(Channel.fromPath(file(params.regions)))
+    } else {
+        gene_regions = Channel.empty()
+    }
 
     coverage = mosdepth(bam_ch)
     plot_coverage(sample, coverage.per_base_d4, genome_ch, cytoband_ch)
