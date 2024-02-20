@@ -151,8 +151,6 @@ def plot_coverage(
             ax.spines.bottom.set_visible(False)
 
             for band in cytobands[chrom]:
-                if chrom == "chr1":
-                    print(band)
                 rect = mpatches.Rectangle(
                     (0, band["start"]),
                     10,
