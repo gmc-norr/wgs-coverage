@@ -10,6 +10,7 @@ log.info """\
      genome: ${params.genome}
   cytobands: ${params.cytobands}
     results: ${params.results}
+    regions: ${params.regions}
     """
 
 process mosdepth {
@@ -32,7 +33,7 @@ process mosdepth {
 
 process samtools_index {
     container 'quay.io/biocontainers/samtools:1.19.1--h50ea8bc_0'
-    
+
     input:
     path bam
 
@@ -47,16 +48,16 @@ process samtools_index {
 
 process plot_coverage {
     conda "${projectDir}/environments/plot_coverage.yaml"
-    publishDir "${params.results}/${sample}"
+    publishDir "${params.results}/${sample}/plots"
 
     input:
     val sample
     path coverage
-    val genome
     path cytobands
+    path regions
 
     output:
-    path '*.total_coverage.png'
+    path '*.png', emit: plots
 
     script:
     cytoband_arg = ""
@@ -64,12 +65,29 @@ process plot_coverage {
         cytoband_arg = "--cytobands $cytobands"
     }
 
-    if (genome) {
-        genome = "--reference-genome $genome"
+    region_arg = ""
+    if (regions.name != "NO_FILE") {
+        region_arg = "--regions $regions"
     }
 
     """
-    plot_coverage.py $cytoband_arg $genome -o ${sample}.total_coverage.png $coverage
+    plot_coverage.py $region_arg $cytoband_arg -o ${sample} $coverage
+    """
+}
+
+process split_bed {
+    container 'quay.io/biocontainers/csvtk:0.29.0--h9ee0642_0'
+
+    input:
+    path bed
+
+    output:
+    path "*.${extension}", emit: split_bed
+
+    script:
+    extension = bed.getExtension()
+    """
+    csvtk split --no-header-row --tabs -f 4 $bed
     """
 }
 
@@ -118,6 +136,11 @@ workflow {
 
     cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it}.txt") }
 
+    regions_ch = Channel.fromPath(file("${projectDir}/assets/NO_FILE"))
+    if (params.regions) {
+        regions_ch = Channel.fromPath(file(params.regions))
+    }
+
     coverage = mosdepth(bam_ch)
-    plot_coverage(sample, coverage.per_base_d4, genome_ch, cytoband_ch)
+    plot_coverage(sample, coverage.per_base_d4, cytoband_ch, regions_ch)
 }

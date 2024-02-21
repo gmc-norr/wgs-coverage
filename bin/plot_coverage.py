@@ -2,6 +2,7 @@
 
 import pathlib
 from collections import defaultdict
+from typing import Dict, List, Union
 
 import click
 import matplotlib as mpl
@@ -51,7 +52,7 @@ CYTOBAND_COLORS = {
 }
 
 
-def parse_cytobands(cytobands_file) -> dict:
+def parse_cytobands(cytobands_file: str) -> dict:
     cytobands = defaultdict(list)
     with open(cytobands_file) as f:
         for line in f:
@@ -67,6 +68,24 @@ def parse_cytobands(cytobands_file) -> dict:
                 }
             )
     return cytobands
+
+
+def parse_bed(bed_file) -> Dict[str, Union[str, int]]:
+    regions = defaultdict(list)
+    with open(bed_file) as f:
+        for line in f:
+            line = line.strip().split()
+            if not line[3]:
+                continue
+            regions[line[3]].append(
+                {
+                    "chrom": line[0],
+                    "start": int(line[1]),
+                    "end": int(line[2]),
+                    "strand": line[4],
+                }
+            )
+    return regions
 
 
 def plot_coverage(
@@ -116,8 +135,6 @@ def plot_coverage(
     max_cov = min(max([max(cov[c]["coverage"]) for c in cov]), max_coverage)
     max_pos = max([max(cov[c]["position"]) for c in cov])
 
-    # style.use("ggplot")
-
     fig, axs = plt.subplot_mosaic(
         chrom_layout, layout="constrained", width_ratios=width_ratios
     )
@@ -138,7 +155,6 @@ def plot_coverage(
         ax.spines.left.set_visible(False)
         ax.spines.top.set_visible(False)
         ax.spines.right.set_visible(False)
-        # ax.tick_params(axis="y", which="both", length=0, labelsize=0)
 
         if plot_cytobands:
             ax = axs[f"{chrom}_cb"]
@@ -151,8 +167,6 @@ def plot_coverage(
             ax.spines.bottom.set_visible(False)
 
             for band in cytobands[chrom]:
-                if chrom == "chr1":
-                    print(band)
                 rect = mpatches.Rectangle(
                     (0, band["start"]),
                     10,
@@ -172,6 +186,60 @@ def plot_coverage(
     return fig
 
 
+def plot_gene_coverage(
+    coverage: D4File,
+    gene: str,
+    exons: List[Dict[str, Union[str, int]]],
+):
+    chrom = exons[0]["chrom"]
+    min_x = min([x["start"] for x in exons])
+    max_x = max([x["end"] for x in exons])
+    margin = int(0.05 * (max_x - min_x))
+    x = np.arange(min_x - margin, max_x + margin)
+
+    gene_cov = coverage.resample((chrom, min_x - margin, max_x + margin), bin_size=1)[0]
+
+    fig, axs = plt.subplot_mosaic(
+        [["coverage"], ["gene"]],
+        layout="constrained",
+        height_ratios=[10, 1],
+    )
+
+    cov_ax = axs["coverage"]
+    cov_ax.plot(x, gene_cov)
+    cov_ax.set_xlim(min_x - margin, max_x + margin)
+    cov_ax.set_ylim(0, 100)
+    cov_ax.set_ylabel("Coverage")
+    cov_ax.axhline(y=30, color="firebrick", linewidth=0.5, linestyle=(0, (5, 5)))
+
+    gene_ax = axs["gene"]
+    gene_ax.plot([min_x, max_x], [5, 5], color="black", linewidth=1, linestyle="solid")
+    for exon in exons:
+        exon_rect = mpatches.Rectangle(
+            xy=(exon["start"], 0),
+            width=exon["end"] - exon["start"],
+            height=10,
+            facecolor="gray",
+        )
+        exon_rect.set_zorder(10)
+        gene_ax.add_patch(exon_rect)
+    gene_ax.set_xlim(min_x - margin, max_x + margin)
+    gene_ax.set_ylim(-1, 11)
+
+    gene_ax.spines.top.set_visible(False)
+    gene_ax.spines.right.set_visible(False)
+    gene_ax.spines.bottom.set_visible(False)
+    gene_ax.spines.left.set_visible(False)
+
+    gene_ax.yaxis.set_visible(False)
+    gene_ax.xaxis.set_visible(False)
+
+    fig.suptitle(gene)
+    fig.supxlabel(f"Position on {chrom}")
+
+    return fig
+
+
 @click.command()
 @click.argument("coverage")
 @click.option(
@@ -183,22 +251,29 @@ def plot_coverage(
 )
 @click.option(
     "-o",
-    "--output",
-    "plot_file",
+    "--output-prefix",
+    "output_prefix",
     type=click.Path(path_type=pathlib.Path),
-    help="Output image file",
+    help="Prefix of output files",
 )
-@click.option("--dpi", default=100, show_default=True, help="Plot resolution")
+@click.option(
+    "-f",
+    "--output-format",
+    "output_format",
+    type=click.Choice(["png", "pdf"]),
+    default="png",
+    show_default=True,
+    help="Output format",
+)
 @click.option(
     "-r",
-    "--reference-genome",
-    "genome_build",
-    help="Reference genome build",
-    type=click.Choice(["hg19", "hg38"]),
-    default="hg19",
-    show_default=True,
+    "--regions",
+    "regions",
+    type=click.Path(path_type=pathlib.Path),
+    help="BED file(s) with regions to cover",
 )
-def main(coverage, cytobands_file, dpi, plot_file, genome_build):
+@click.option("--dpi", default=100, show_default=True, help="Plot resolution")
+def main(coverage, cytobands_file, regions, dpi, output_prefix, output_format):
     f = D4File(coverage)
 
     cytobands = {}
@@ -206,7 +281,13 @@ def main(coverage, cytobands_file, dpi, plot_file, genome_build):
         cytobands = parse_cytobands(cytobands_file)
 
     p = plot_coverage(f, cytobands)
-    p.savefig(plot_file, dpi=dpi)
+    p.savefig(f"{output_prefix}.total_coverage.{output_format}", dpi=dpi)
+
+    if regions:
+        regions = parse_bed(regions)
+        for gene, d in regions.items():
+            p = plot_gene_coverage(f, gene, d)
+            p.savefig(f"{output_prefix}.{gene}.png", dpi=dpi)
 
 
 if __name__ == "__main__":
