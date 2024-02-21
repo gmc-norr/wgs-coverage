@@ -71,7 +71,7 @@ process plot_coverage {
     }
 
     """
-    plot_coverage.py $region_arg $cytoband_arg -o ${sample}.total_coverage.png $coverage
+    plot_coverage.py $region_arg $cytoband_arg -o ${sample} $coverage
     """
 }
 

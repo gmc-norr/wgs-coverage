@@ -230,10 +230,19 @@ def plot_gene_coverage(
 )
 @click.option(
     "-o",
-    "--output",
-    "plot_file",
+    "--output-prefix",
+    "output_prefix",
     type=click.Path(path_type=pathlib.Path),
-    help="Output image file",
+    help="Prefix of output files",
+)
+@click.option(
+    "-f",
+    "--output-format",
+    "output_format",
+    type=click.Choice(["png", "pdf"]),
+    default="png",
+    show_default=True,
+    help="Output format",
 )
 @click.option(
     "-r",
@@ -243,7 +252,7 @@ def plot_gene_coverage(
     help="BED file(s) with regions to cover",
 )
 @click.option("--dpi", default=100, show_default=True, help="Plot resolution")
-def main(coverage, cytobands_file, regions, dpi, plot_file):
+def main(coverage, cytobands_file, regions, dpi, output_prefix, output_format):
     f = D4File(coverage)
 
     cytobands = {}
@@ -251,13 +260,13 @@ def main(coverage, cytobands_file, regions, dpi, plot_file):
         cytobands = parse_cytobands(cytobands_file)
 
     p = plot_coverage(f, cytobands)
-    p.savefig(plot_file, dpi=dpi)
+    p.savefig(f"{output_prefix}.total_coverage.{output_format}", dpi=dpi)
 
     if regions:
         regions = parse_bed(regions)
         for gene, d in regions.items():
             p = plot_gene_coverage(f, gene, d)
-            p.savefig(f"{plot_file}.{gene}.png", dpi=dpi)
+            p.savefig(f"{output_prefix}.{gene}.png", dpi=dpi)
 
 
 if __name__ == "__main__":
