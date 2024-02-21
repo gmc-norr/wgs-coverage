@@ -135,8 +135,6 @@ def plot_coverage(
     max_cov = min(max([max(cov[c]["coverage"]) for c in cov]), max_coverage)
     max_pos = max([max(cov[c]["position"]) for c in cov])
 
-    # style.use("ggplot")
-
     fig, axs = plt.subplot_mosaic(
         chrom_layout, layout="constrained", width_ratios=width_ratios
     )
@@ -157,7 +155,6 @@ def plot_coverage(
         ax.spines.left.set_visible(False)
         ax.spines.top.set_visible(False)
         ax.spines.right.set_visible(False)
-        # ax.tick_params(axis="y", which="both", length=0, labelsize=0)
 
         if plot_cytobands:
             ax = axs[f"{chrom}_cb"]
@@ -197,24 +194,48 @@ def plot_gene_coverage(
     chrom = exons[0]["chrom"]
     min_x = min([x["start"] for x in exons])
     max_x = max([x["end"] for x in exons])
-    x = np.arange(min_x, max_x)
+    margin = int(0.05 * (max_x - min_x))
+    x = np.arange(min_x - margin, max_x + margin)
 
-    print(chrom, min_x, max_x)
+    gene_cov = coverage.resample((chrom, min_x - margin, max_x + margin), bin_size=1)[0]
 
-    gene_cov = coverage.resample((chrom, min_x, max_x), bin_size=1)[0]
-    print(coverage.mean(f"{chrom}:{min_x}-{max_x}"))
-    print(gene_cov, len(gene_cov), len(x))
+    fig, axs = plt.subplot_mosaic(
+        [["coverage"], ["gene"]],
+        layout="constrained",
+        height_ratios=[10, 1],
+    )
 
-    fig, axs = plt.subplot_mosaic([["coverage"], ["gene"]], layout="constrained")
     cov_ax = axs["coverage"]
     cov_ax.plot(x, gene_cov)
-    cov_ax.set_xlim(min_x, max_x)
+    cov_ax.set_xlim(min_x - margin, max_x + margin)
     cov_ax.set_ylim(0, 100)
     cov_ax.set_ylabel("Coverage")
     cov_ax.axhline(y=30, color="firebrick", linewidth=0.5, linestyle=(0, (5, 5)))
 
+    gene_ax = axs["gene"]
+    gene_ax.plot([min_x, max_x], [5, 5], color="black", linewidth=1, linestyle="solid")
+    for exon in exons:
+        exon_rect = mpatches.Rectangle(
+            xy=(exon["start"], 0),
+            width=exon["end"] - exon["start"],
+            height=10,
+            facecolor="gray",
+        )
+        exon_rect.set_zorder(10)
+        gene_ax.add_patch(exon_rect)
+    gene_ax.set_xlim(min_x - margin, max_x + margin)
+    gene_ax.set_ylim(-1, 11)
+
+    gene_ax.spines.top.set_visible(False)
+    gene_ax.spines.right.set_visible(False)
+    gene_ax.spines.bottom.set_visible(False)
+    gene_ax.spines.left.set_visible(False)
+
+    gene_ax.yaxis.set_visible(False)
+    gene_ax.xaxis.set_visible(False)
+
     fig.suptitle(gene)
-    fig.supxlabel("Position")
+    fig.supxlabel(f"Position on {chrom}")
 
     return fig
 
