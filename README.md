@@ -10,14 +10,24 @@ nextflow run gmc-norr/wgs-coverage \
     [--genome hg19|hg38] \
     [--cytobands true|false] \
     [--results <output_directory>]
+    [--regions <regions.bed>]
 ```
 
 If `--genome` is not supplied, the version will be guessed based on the BAM header. Cytoband definitions are stored under `data`, and the version is based on either the supplied or the guessed genome version.
 
-## Input
-
-- Alignments in BAM format
+Coverage for custom regions can plotted by supplying a `--regions` bed file. This requires that the name column of the bed file has an entry, and one plot per unique entry in this column will be produced.
 
 ## Output
 
-- PNG visualisation of the coverage across all chromosomes
+By default, the following output will be created:
+
+```
+results/
+    <sample>/
+        <sample>.mosdepth.global.dist.txt
+        <sample>.mosdepth.summary.txt
+        <sample>.per-base.d4
+        plots/
+            <sample>.total_coverage.png
+            <sample>.<region>.png (one per region, if --regions supplied)
+```
