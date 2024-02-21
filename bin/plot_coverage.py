@@ -2,6 +2,7 @@
 
 import pathlib
 from collections import defaultdict
+from typing import Dict, List, Union
 
 import click
 import matplotlib as mpl
@@ -51,7 +52,7 @@ CYTOBAND_COLORS = {
 }
 
 
-def parse_cytobands(cytobands_file) -> dict:
+def parse_cytobands(cytobands_file: str) -> dict:
     cytobands = defaultdict(list)
     with open(cytobands_file) as f:
         for line in f:
@@ -67,6 +68,24 @@ def parse_cytobands(cytobands_file) -> dict:
                 }
             )
     return cytobands
+
+
+def parse_bed(bed_file) -> Dict[str, Union[str, int]]:
+    regions = defaultdict(list)
+    with open(bed_file) as f:
+        for line in f:
+            line = line.strip().split()
+            if not line[3]:
+                continue
+            regions[line[3]].append(
+                {
+                    "chrom": line[0],
+                    "start": int(line[1]),
+                    "end": int(line[2]),
+                    "strand": line[4],
+                }
+            )
+    return regions
 
 
 def plot_coverage(
@@ -170,6 +189,36 @@ def plot_coverage(
     return fig
 
 
+def plot_gene_coverage(
+    coverage: D4File,
+    gene: str,
+    exons: List[Dict[str, Union[str, int]]],
+):
+    chrom = exons[0]["chrom"]
+    min_x = min([x["start"] for x in exons])
+    max_x = max([x["end"] for x in exons])
+    x = np.arange(min_x, max_x)
+
+    print(chrom, min_x, max_x)
+
+    gene_cov = coverage.resample((chrom, min_x, max_x), bin_size=1)[0]
+    print(coverage.mean(f"{chrom}:{min_x}-{max_x}"))
+    print(gene_cov, len(gene_cov), len(x))
+
+    fig, axs = plt.subplot_mosaic([["coverage"], ["gene"]], layout="constrained")
+    cov_ax = axs["coverage"]
+    cov_ax.plot(x, gene_cov)
+    cov_ax.set_xlim(min_x, max_x)
+    cov_ax.set_ylim(0, 100)
+    cov_ax.set_ylabel("Coverage")
+    cov_ax.axhline(y=30, color="firebrick", linewidth=0.5, linestyle=(0, (5, 5)))
+
+    fig.suptitle(gene)
+    fig.supxlabel("Position")
+
+    return fig
+
+
 @click.command()
 @click.argument("coverage")
 @click.option(
@@ -203,6 +252,12 @@ def main(coverage, cytobands_file, regions, dpi, plot_file):
 
     p = plot_coverage(f, cytobands)
     p.savefig(plot_file, dpi=dpi)
+
+    if regions:
+        regions = parse_bed(regions)
+        for gene, d in regions.items():
+            p = plot_gene_coverage(f, gene, d)
+            p.savefig(f"{plot_file}.{gene}.png", dpi=dpi)
 
 
 if __name__ == "__main__":
