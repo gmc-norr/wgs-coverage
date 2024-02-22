@@ -148,11 +148,11 @@ workflow {
     if (!params.genome) {
         genome_ch = guess_genome(bam_ch)
         genome_ch.view { log.info "guessing genome build is ${it[1]} for ${it[0]}" }
+        cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it[1]}.txt") }
     } else {
         genome_ch = Channel.value(params.genome)
+        cytoband_ch = Channel.value(file("${projectDir}/data/cytoBand.${params.genome}.txt"))
     }
-
-    cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it[1]}.txt") }
 
     regions_ch = Channel.value(file("${projectDir}/assets/NO_FILE"))
     if (params.regions) {
