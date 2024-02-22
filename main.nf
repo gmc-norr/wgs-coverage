@@ -1,12 +1,15 @@
 params.bam = null
+params.bamlist = null
 params.genome = null
 params.cytobands = true
 params.results = "results"
+params.regions = null
 
 log.info """\
     W G S  C O V E R A G E
     ======================
         bam: ${params.bam}
+    bamlist: ${params.bamlist}
      genome: ${params.genome}
   cytobands: ${params.cytobands}
     results: ${params.results}
@@ -21,9 +24,9 @@ process mosdepth {
     tuple val(sample), path(bam), path(bai)
 
     output:
-    path '*.per-base.d4', emit: 'per_base_d4'
-    path '*.mosdepth.global.dist.txt', emit: 'global_dist'
-    path '*.mosdepth.summary.txt', emit: 'summary'
+    tuple val(sample), path('*.per-base.d4'), emit: per_base_d4
+    tuple val(sample), path('*.mosdepth.global.dist.txt'), emit: global_dist
+    tuple val(sample), path('*.mosdepth.summary.txt'), emit: summary
 
     script:
     """
@@ -35,10 +38,10 @@ process samtools_index {
     container 'quay.io/biocontainers/samtools:1.19.1--h50ea8bc_0'
 
     input:
-    path bam
+    tuple val(sample), path(bam)
 
     output:
-    path "*.bai", emit: "bai"
+    tuple val(sample), path("*.bai"), emit: bai
 
     script:
     """
@@ -51,13 +54,12 @@ process plot_coverage {
     publishDir "${params.results}/${sample}/plots"
 
     input:
-    val sample
-    path coverage
+    tuple val(sample), path(coverage)
     path cytobands
     path regions
 
     output:
-    path '*.png', emit: plots
+    tuple val(sample), path('*.png'), emit: plots
 
     script:
     cytoband_arg = ""
@@ -98,7 +100,7 @@ process guess_genome {
     tuple val(sample), path(bam), path(bai)
 
     output:
-    stdout
+    tuple val(sample), stdout
 
     script:
     """
@@ -111,36 +113,52 @@ def is_newer(a, b) {
 }
 
 workflow {
-    if (params.bam == null) {
-        error("No bam file provided")
+    if (!params.bam && !params.bamlist) {
+        error("No bam file(s) provided")
     }
 
-    bam = file(params.bam, checkIfExists: true)
-    bai = file("${params.bam}.bai")
-    sample = bam.getBaseName().split("_").first()
+    if (params.bam && params.bamlist) {
+        error("Cannot provide both a bam file and a bam list")
+    }
 
-    if (!bai.exists() || !is_newer(bai, bam)) {
-        bai_ch = samtools_index(Channel.fromPath(bam))
+    if (params.bamlist) {
+        bams = file(params.bamlist).readLines().collect { file(it, checkIfExists: true) }
     } else {
-        bai_ch = Channel.fromPath(bai)
+        bams = [file(params.bam, checkIfExists: true)]
     }
 
-    bam_ch = Channel.of([sample, bam]).combine(bai_ch)
+    bam_ch = Channel
+        .fromList(bams)
+        .map { bam ->
+            sample = bam.getBaseName().split("_").first()
+            [sample, bam]
+        }
+
+    bam_wo_index = bam_ch.filter { it ->
+        bai = file("${it[1]}.bai")
+        !bai.exists() || !is_newer(bai, it[1])
+    }
+
+    bai_ch = samtools_index(bam_wo_index)
+
+    bam_ch = bam_ch
+        .join(bai_ch, remainder: true)
+        .map({ [it[0], it[1], it[2] ? it[2] : "${it[1]}.bai"] })
 
     if (!params.genome) {
         genome_ch = guess_genome(bam_ch)
-        genome_ch.view { log.info "guessing genome build is $it" }
+        genome_ch.view { log.info "guessing genome build is ${it[1]} for ${it[0]}" }
     } else {
         genome_ch = Channel.value(params.genome)
     }
 
-    cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it}.txt") }
+    cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it[1]}.txt") }
 
-    regions_ch = Channel.fromPath(file("${projectDir}/assets/NO_FILE"))
+    regions_ch = Channel.value(file("${projectDir}/assets/NO_FILE"))
     if (params.regions) {
-        regions_ch = Channel.fromPath(file(params.regions))
+        regions_ch = Channel.value(file(params.regions))
     }
 
     coverage = mosdepth(bam_ch)
-    plot_coverage(sample, coverage.per_base_d4, cytoband_ch, regions_ch)
+    plot_coverage(coverage.per_base_d4, cytoband_ch, regions_ch)
 }
