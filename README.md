@@ -6,12 +6,14 @@ A Nextflow pipeline that calculates and visualises read coverage in WGS data.
 
 ```
 nextflow run gmc-norr/wgs-coverage \
-    --bam <input.bam> \
+    --bam <input.bam> | --bamlist <input.txt> \
     [--genome hg19|hg38] \
     [--cytobands true|false] \
     [--results <output_directory>]
     [--regions <regions.bed>]
 ```
+
+The main input is either a single BAM file, or a text file contining a list of paths to BAM files, one per line.
 
 If `--genome` is not supplied, the version will be guessed based on the BAM header. Cytoband definitions are stored under `data`, and the version is based on either the supplied or the guessed genome version.
 
