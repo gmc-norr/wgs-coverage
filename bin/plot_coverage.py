@@ -82,7 +82,7 @@ def parse_bed(bed_file) -> Dict[str, Union[str, int]]:
                     "chrom": line[0],
                     "start": int(line[1]),
                     "end": int(line[2]),
-                    "strand": line[4],
+                    "strand": line[5],
                 }
             )
     return regions
