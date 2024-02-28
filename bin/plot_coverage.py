@@ -283,12 +283,14 @@ def main(coverage, cytobands_file, regions, dpi, output_prefix, output_format):
 
     p = plot_coverage(f, cytobands)
     p.savefig(f"{output_prefix}.total_coverage.{output_format}", dpi=dpi)
+    plt.close(p)
 
     if regions:
         regions = parse_bed(regions)
         for gene, d in regions.items():
             p = plot_gene_coverage(f, gene, d)
             p.savefig(f"{output_prefix}.{gene}.png", dpi=dpi)
+            plt.close(p)
 
 
 if __name__ == "__main__":
