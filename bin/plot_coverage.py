@@ -208,6 +208,7 @@ def plot_gene_coverage(
     cov_ax = axs["coverage"]
     cov_ax.plot(x, gene_cov)
     cov_ax.set_xlim(min_x - margin, max_x + margin)
+    cov_ax.xaxis.set_major_formatter(lambda x, pos: f"{x / 1e6:.3f}")
     cov_ax.set_ylim(0, 100)
     cov_ax.set_ylabel("Coverage")
     cov_ax.axhline(y=30, color="firebrick", linewidth=0.5, linestyle=(0, (5, 5)))
@@ -235,7 +236,7 @@ def plot_gene_coverage(
     gene_ax.xaxis.set_visible(False)
 
     fig.suptitle(gene)
-    fig.supxlabel(f"Position on {chrom}")
+    fig.supxlabel(f"Position on {chrom} (Mbp)")
 
     return fig
 
