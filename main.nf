@@ -77,7 +77,7 @@ process plot_coverage {
     """
 }
 
-process plot_region_distributions {
+process plot_gene_coverage_distributions {
     conda "${projectDir}/environments/plot_coverage.yaml"
     publishDir "${params.results}/summary"
 
@@ -89,7 +89,7 @@ process plot_region_distributions {
     path "*.png", emit: plots
 
     """
-    plot_region_distributions.py $regions $coverage
+    plot_gene_coverage_distributions.py $regions $coverage
     """
 }
 
@@ -177,5 +177,5 @@ workflow {
 
     coverage = mosdepth(bam_ch)
     plot_coverage(coverage.per_base_d4, cytoband_ch, regions_ch)
-    plot_region_distributions(coverage.per_base_d4.collect { it[1] }, regions_ch)
+    plot_gene_coverage_distributions(coverage.per_base_d4.collect { it[1] }, regions_ch)
 }

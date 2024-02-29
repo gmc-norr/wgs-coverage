@@ -14,7 +14,7 @@ from plot_coverage import parse_bed
 from pyd4 import D4File
 
 
-def plot_region_distributions(
+def plot_gene_coverage_distributions(
     coverage: List[Path], regions: List[Dict[str, Union[str, int]]], gene: str
 ):
     chromosome = regions[0]["chrom"]
@@ -140,13 +140,13 @@ def main(regions, coverage, gene, dpi, verbose):
         if gene and gene != g:
             continue
         logging.debug("plotting %s", g)
-        d, p = plot_region_distributions(coverage, d, g)
-        p.savefig(
+        plot_data, fig = plot_gene_coverage_distributions(coverage, d, g)
+        fig.savefig(
             f"{g}.distribution.png",
             bbox_inches="tight",
             dpi=dpi,
         )
-        d.write_csv(f"{g}.distribution.tsv", separator="\t")
+        plot_data.write_csv(f"{g}.distribution.tsv", separator="\t")
         if gene:
             break
     else:
