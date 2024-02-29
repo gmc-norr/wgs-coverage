@@ -3,3 +3,5 @@ work
 results
 *.bam
 *.bam.bai
+
+__pycache__
