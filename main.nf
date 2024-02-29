@@ -77,6 +77,22 @@ process plot_coverage {
     """
 }
 
+process plot_region_distributions {
+    conda "${projectDir}/environments/plot_coverage.yaml"
+    publishDir "${params.results}/summary"
+
+    input:
+    path coverage
+    path regions
+
+    output:
+    path "*.png", emit: plots
+
+    """
+    plot_region_distributions.py $regions $coverage
+    """
+}
+
 process split_bed {
     container 'quay.io/biocontainers/csvtk:0.29.0--h9ee0642_0'
 
@@ -161,4 +177,5 @@ workflow {
 
     coverage = mosdepth(bam_ch)
     plot_coverage(coverage.per_base_d4, cytoband_ch, regions_ch)
+    plot_region_distributions(coverage.per_base_d4.collect { it[1] }, regions_ch)
 }
