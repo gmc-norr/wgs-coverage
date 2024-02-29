@@ -170,6 +170,7 @@ def main(regions, coverage, gene, plot_exons, dpi, verbose):
             bbox_inches="tight",
             dpi=dpi,
         )
+        plt.close(fig)
         plot_data.write_csv(f"{g}.distribution.tsv", separator="\t")
 
         if plot_exons:
@@ -182,6 +183,7 @@ def main(regions, coverage, gene, plot_exons, dpi, verbose):
                 bbox_inches="tight",
                 dpi=dpi,
             )
+            plt.close(fig)
             plot_data.write_csv(f"{g}.exons.distribution.tsv", separator="\t")
         if gene:
             break
