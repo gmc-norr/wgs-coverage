@@ -15,7 +15,10 @@ from pyd4 import D4File
 
 
 def plot_gene_coverage_distributions(
-    coverage: List[Path], regions: List[Dict[str, Union[str, int]]], gene: str
+    coverage: List[Path],
+    regions: List[Dict[str, Union[str, int]]],
+    gene: str,
+    plot_exons: bool = False,
 ):
     chromosome = regions[0]["chrom"]
     min_pos = min([x["start"] for x in regions])
@@ -42,7 +45,17 @@ def plot_gene_coverage_distributions(
         axs.append(ax)
 
         x = np.arange(1, 100)
-        y = cov.resample((chromosome, min_pos, max_pos), bin_size=1)[0]
+
+        if plot_exons:
+            y = np.empty(0, dtype=np.float64)
+            for exon in regions:
+                exon_cov = cov.resample(
+                    (chromosome, exon["start"], exon["end"]), bin_size=1
+                )[0]
+                y = np.concatenate((y, exon_cov))
+        else:
+            y = cov.resample((chromosome, min_pos, max_pos), bin_size=1)[0]
+
         try:
             cov_kde = scipy.stats.gaussian_kde(y)
             dy = cov_kde.evaluate(x)
@@ -54,7 +67,7 @@ def plot_gene_coverage_distributions(
             pl.DataFrame(
                 {
                     "sample": p.name.split(".")[0],
-                    "gene": gene,
+                    "gene": f"{gene} exons" if plot_exons else gene,
                     "x": x,
                     "y": dy,
                 }
@@ -114,6 +127,13 @@ def plot_gene_coverage_distributions(
     help="Limit plotting to this gene",
 )
 @click.option(
+    "-e",
+    "--exons",
+    "plot_exons",
+    is_flag=True,
+    help="Generate an extra plot with exonic coverage only",
+)
+@click.option(
     "--dpi",
     "dpi",
     type=int,
@@ -128,9 +148,13 @@ def plot_gene_coverage_distributions(
     is_flag=True,
     help="Enable debug logging",
 )
-def main(regions, coverage, gene, dpi, verbose):
+def main(regions, coverage, gene, plot_exons, dpi, verbose):
     """
-    When plotting the coverage distributions, zeroes are ignored.
+    Plot coverage distributions for genes. By default, one figure per
+    gene is generated representing the coverage across the whole gene,
+    both exons and introns. If `--exons` is supplied, a second plot
+    representing only exonic coverage is generated as well. Note that
+    regions with zero coverage are ignored.
     """
     log_level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(level=log_level)
@@ -147,6 +171,18 @@ def main(regions, coverage, gene, dpi, verbose):
             dpi=dpi,
         )
         plot_data.write_csv(f"{g}.distribution.tsv", separator="\t")
+
+        if plot_exons:
+            logging.debug("plotting exon coverage for %s", g)
+            plot_data, fig = plot_gene_coverage_distributions(
+                coverage, d, g, plot_exons=True
+            )
+            fig.savefig(
+                f"{g}.exons.distribution.png",
+                bbox_inches="tight",
+                dpi=dpi,
+            )
+            plot_data.write_csv(f"{g}.exons.distribution.tsv", separator="\t")
         if gene:
             break
     else:

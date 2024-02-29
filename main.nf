@@ -86,10 +86,11 @@ process plot_gene_coverage_distributions {
     path regions
 
     output:
-    path "*.png", emit: plots
+    tuple path("*.distribution.png"), path("*.distribution.tsv"), emit: gene_plot
+    tuple path("*.exons.distribution.png"), path("*.exons.distribution.tsv"), emit: exon_plot
 
     """
-    plot_gene_coverage_distributions.py $regions $coverage
+    plot_gene_coverage_distributions.py --exons $regions $coverage
     """
 }
 
@@ -163,7 +164,7 @@ workflow {
 
     if (!params.genome) {
         genome_ch = guess_genome(bam_ch)
-        genome_ch.view { log.info "guessing genome build is ${it[1]} for ${it[0]}" }
+        // genome_ch.view { log.info "guessing genome build is ${it[1]} for ${it[0]}" }
         cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it[1]}.txt") }
     } else {
         genome_ch = Channel.value(params.genome)
@@ -177,5 +178,8 @@ workflow {
 
     coverage = mosdepth(bam_ch)
     plot_coverage(coverage.per_base_d4, cytoband_ch, regions_ch)
-    plot_gene_coverage_distributions(coverage.per_base_d4.collect { it[1] }, regions_ch)
+
+    if (params.regions) {
+        plot_gene_coverage_distributions(coverage.per_base_d4.collect { it[1] }, regions_ch)
+    }
 }
