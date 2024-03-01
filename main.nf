@@ -77,6 +77,23 @@ process plot_coverage {
     """
 }
 
+process plot_gene_coverage_distributions {
+    conda "${projectDir}/environments/plot_coverage.yaml"
+    publishDir "${params.results}/summary"
+
+    input:
+    path coverage
+    path regions
+
+    output:
+    tuple path("*.distribution.png"), path("*.distribution.tsv"), emit: gene_plot
+    tuple path("*.exons.distribution.png"), path("*.exons.distribution.tsv"), emit: exon_plot
+
+    """
+    plot_gene_coverage_distributions.py --exons $regions $coverage
+    """
+}
+
 process split_bed {
     container 'quay.io/biocontainers/csvtk:0.29.0--h9ee0642_0'
 
@@ -147,7 +164,7 @@ workflow {
 
     if (!params.genome) {
         genome_ch = guess_genome(bam_ch)
-        genome_ch.view { log.info "guessing genome build is ${it[1]} for ${it[0]}" }
+        // genome_ch.view { log.info "guessing genome build is ${it[1]} for ${it[0]}" }
         cytoband_ch = genome_ch.map { file("${projectDir}/data/cytoBand.${it[1]}.txt") }
     } else {
         genome_ch = Channel.value(params.genome)
@@ -161,4 +178,8 @@ workflow {
 
     coverage = mosdepth(bam_ch)
     plot_coverage(coverage.per_base_d4, cytoband_ch, regions_ch)
+
+    if (params.regions) {
+        plot_gene_coverage_distributions(coverage.per_base_d4.collect { it[1] }, regions_ch)
+    }
 }
